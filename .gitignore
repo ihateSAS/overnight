@@ -1,0 +1,6 @@
+.env
+node_modules/
+targets/
+runs/
+*.mp4
+!video/overnight-demo.mp4

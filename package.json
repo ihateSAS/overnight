@@ -1,0 +1,14 @@
+{
+  "name": "overnight",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Migrate a CommonJS codebase to ES modules in seconds with Kimi K3.1 Pro on Cerebras, then prove it with the project's own tests.",
+  "scripts": {
+    "setup": "bash ./setup.sh",
+    "start": "node server.mjs",
+    "migrate": "node migrate.mjs"
+  },
+  "engines": { "node": ">=22.12" },
+  "license": "MIT"
+}

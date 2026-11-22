@@ -1,0 +1,35 @@
+// OpenClaw config for Overnight's agent: Kimi K3.1 Pro on Cerebras, nothing else.
+// The key comes from the environment (CEREBRAS_API_KEY); run with --auth-env-only.
+{
+  plugins: { entries: { "memory-core": { enabled: false } } },
+  agents: {
+    defaults: {
+      model: { primary: "cerebras/moonshotai-kimi-k3.1-pro-trial" },
+      models: { "cerebras/moonshotai-kimi-k3.1-pro-trial": { alias: "Kimi K3.1 Pro (Cerebras)", params: { temperature: 0 } } },
+      thinkingDefault: "low",
+    },
+  },
+  models: {
+    mode: "merge",
+    providers: {
+      cerebras: {
+        baseUrl: "https://api.cerebras.ai/v1",
+        apiKey: "${CEREBRAS_API_KEY}",
+        api: "openai-completions",
+        timeoutSeconds: 120,
+        models: [
+          {
+            id: "moonshotai-kimi-k3.1-pro-trial",
+            name: "Kimi K3.1 Pro (Cerebras)",
+            reasoning: true,
+            input: ["text"],
+            contextWindow: 262144,
+            maxTokens: 4096,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            compat: { supportsReasoningEffort: true, supportedReasoningEfforts: ["low", "medium", "high", "max"] },
+          },
+        ],
+      },
+    },
+  },
+}

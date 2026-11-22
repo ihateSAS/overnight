@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#06070c" />
+<title>Overnight: migrate a codebase to ES modules in seconds</title>
+<style>
+@font-face { font-family: "Manrope"; font-weight: 300 800; font-display: swap; src: url("/fonts/manrope-latin.woff2") format("woff2"); }
+:root {
+  --bg: #06070c;
+  --panel: #0c0e16;
+  --panel-2: #10131d;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.16);
+  --text: #f1f2f6;
+  --muted: #a9afbf;
+  --dim: #6c7385;
+  --amber: #ffb547;
+  --amber-soft: rgba(255, 181, 71, 0.12);
+  --green: #3ddc84;
+  --green-soft: rgba(61, 220, 132, 0.12);
+  --red: #ff5d5d;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(255, 181, 71, 0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(90, 110, 255, 0.10), transparent 60%),
+    var(--bg);
+}
+.wrap { max-width: 1800px; margin: 0 auto; padding: 22px 40px 18px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.moon { width: 34px; height: 34px; border-radius: 50%; box-shadow: inset -9px -3px 0 0 var(--amber); transform: rotate(-20deg); }
+.brand h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+.brand p { margin: 0; color: var(--muted); font-size: 15px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 14px; color: var(--muted); }
+.chip b { color: var(--text); font-weight: 700; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.45; box-shadow: 0 0 4px var(--green); } }
+
+.task { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+.task .what { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.task .what .arrow { color: var(--amber); padding: 0 8px; }
+.task .sub { color: var(--muted); font-size: 15px; margin-top: 6px; font-family: var(--mono); }
+button.go { font: inherit; font-size: 19px; font-weight: 800; padding: 16px 30px; border-radius: 14px; border: 0; background: var(--amber); color: #120c02; cursor: pointer; letter-spacing: -0.01em; box-shadow: 0 10px 40px rgba(255, 181, 71, 0.25); }
+button.go:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+
+.meters { margin-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.meter { padding: 12px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+.meter .k { color: var(--dim); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.meter .v { font-size: 42px; font-weight: 800; letter-spacing: -0.035em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.meter .v small { font-size: 18px; color: var(--muted); font-weight: 700; margin-left: 6px; letter-spacing: 0; }
+.meter .n { color: var(--dim); font-size: 13px; margin-top: 2px; min-height: 18px; }
+.meter.hot .v { color: var(--amber); }
+
+.grid { margin-top: 14px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.tile { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s, box-shadow 0.2s; }
+.tile .top { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 12px 8px; font-size: 13px; }
+.tile .top b { font-family: var(--mono); font-size: 13px; }
+.tile .top span { color: var(--dim); }
+.tile pre { margin: 0; height: 68px; overflow: hidden; padding: 6px 12px; font: 10.5px/1.45 var(--mono); color: #c9cfdc; background: #080a10; white-space: pre; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tile pre .imp { color: var(--amber); }
+.tile .bot { display: flex; align-items: center; gap: 10px; padding: 8px 12px 10px; font-size: 13px; }
+.bar { flex: 1; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--amber); transition: width 0.08s linear; }
+.tile .rate { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; color: var(--dim); }
+.tile.live { border-color: rgba(255, 181, 71, 0.55); box-shadow: 0 0 0 1px rgba(255, 181, 71, 0.15), 0 0 30px rgba(255, 181, 71, 0.08); }
+.tile.live .rate { color: var(--amber); }
+.tile.done { border-color: rgba(61, 220, 132, 0.35); }
+.tile.done .bar i { background: var(--green); }
+.tile.done .rate { color: var(--green); }
+
+.verdict { margin-top: 14px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; }
+.card { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); padding: 14px 24px; height: 180px; overflow: hidden; }
+.card .k { color: var(--dim); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.tests .big { font-size: 58px; font-weight: 800; letter-spacing: -0.04em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.tests .big.pass { color: var(--green); }
+.tests .big.fail { color: var(--red); }
+.tests .line { color: var(--muted); font-size: 16px; margin-top: 4px; }
+.diff pre { margin: 8px 0 0; font: 11.5px/1.45 var(--mono); max-height: 128px; overflow: hidden; white-space: pre; }
+.diff .add { color: var(--green); }
+.diff .del { color: #ff8a8a; }
+.diff .hunk { color: var(--dim); }
+.foot { margin-top: 10px; color: var(--dim); font-size: 12.5px; line-height: 1.5; }
+.idle { color: var(--dim); }
+.agent { margin-top: 8px; font-size: 14.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1450px; }
+.agent .claw { display: inline-block; font-weight: 800; color: #120c02; background: var(--amber); border-radius: 6px; padding: 1px 8px; margin-right: 6px; font-size: 12.5px; letter-spacing: 0.02em; }
+.agent.busy #agentText::after { content: "…"; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="moon"></div>
+      <div>
+        <h1>Overnight</h1>
+        <p>The migration you'd leave running overnight, done in seconds.</p>
+      </div>
+    </div>
+    <div class="chip"><span class="dot"></span><b id="model">Kimi K3.1 Pro</b> on Cerebras</div>
+  </header>
+
+  <section class="task">
+    <div>
+      <div class="what">expressjs/express <span class="arrow">CommonJS → ES modules</span></div>
+      <div class="sub" id="sub">loading…</div>
+      <div class="agent" id="agent"><span class="claw">OpenClaw agent</span> <span id="agentText">idle · overnight skill loaded</span></div>
+    </div>
+    <button class="go" id="go">Migrate to ESM</button>
+  </section>
+
+  <section class="meters">
+    <div class="meter"><div class="k">Elapsed</div><div class="v" id="elapsed">0.00<small>s</small></div><div class="n" id="elapsedNote">wall clock, first request to last file written</div></div>
+    <div class="meter"><div class="k">Output tokens</div><div class="v" id="tokens">0</div><div class="n" id="tokNote">&nbsp;</div></div>
+    <div class="meter hot"><div class="k">Combined speed</div><div class="v" id="combined">0<small>tok/s</small></div><div class="n">all streams together, tokens ÷ wall clock</div></div>
+    <div class="meter"><div class="k">Fastest stream</div><div class="v" id="peak">–<small>tok/s</small></div><div class="n" id="meanNote">Cerebras server time, per call</div></div>
+  </section>
+
+  <section class="grid" id="grid"></section>
+
+  <section class="verdict">
+    <div class="card tests">
+      <div class="k">Express's own test suite, run on Kimi's ES modules</div>
+      <div class="big idle" id="testsBig">waiting</div>
+      <div class="line" id="testsLine">index.js and all 89 test files stay CommonJS and untouched; they load the new ES-module core through require().</div>
+    </div>
+    <div class="card diff">
+      <div class="k" id="diffTitle">lib/express.js, before → after</div>
+      <pre id="diff" class="idle">The diff appears here when the run finishes.</pre>
+    </div>
+  </section>
+
+  <div class="foot">Every piece is one streaming call to <span id="model2">moonshotai-kimi-k3.1-pro-trial</span> at reasoning low, temperature 0. Per-stream speed is Cerebras' own <code>completion_tokens / time_info.completion_time</code>. Combined speed is total output tokens divided by wall-clock seconds, so queueing and network count against it.</div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.round(n).toLocaleString("en-US");
+let tiles = {}, t0 = 0, timer = 0, done = false, target = null;
+
+async function load() {
+  target = await fetch("/api/target").then((r) => r.json());
+  const lines = target.files.reduce((s, f) => s + f.lines, 0);
+  const parts = target.files.reduce((s, f) => s + f.parts, 0);
+  $("sub").textContent = `@${target.commit} · lib/ · ${target.files.length} files · ${fmt(lines)} lines · split into ${parts} pieces · ${fmt(target.baselineTests)} tests`;
+  $("model2").textContent = target.model;
+  const grid = $("grid");
+  grid.innerHTML = "";
+  for (const f of target.files) for (let i = 0; i < f.parts; i++) {
+    const id = f.parts > 1 ? `${f.file}#${i + 1}` : f.file;
+    const el = document.createElement("div");
+    el.className = "tile";
+    el.innerHTML = `<div class="top"><b>${f.file.replace("lib/", "")}</b><span>${f.parts > 1 ? `part ${i + 1}/${f.parts}` : "whole file"}</span></div><pre></pre><div class="bot"><div class="bar"><i></i></div><div class="rate">queued</div></div>`;
+    grid.appendChild(el);
+    tiles[id] = { el, pre: el.querySelector("pre"), bar: el.querySelector(".bar i"), rate: el.querySelector(".rate"), text: "", chars: 0, total: 1, tokens: 0, exact: false, done: false };
+  }
+}
+
+function render() {
+  const now = performance.now();
+  const secs = (now - t0) / 1000;
+  if (!done) $("elapsed").innerHTML = `${secs.toFixed(2)}<small>s</small>`;
+  let tokens = 0;
+  for (const t of Object.values(tiles)) tokens += t.exact ? t.tokens : t.chars / 3.4;
+  if (!done) {
+    $("tokens").textContent = fmt(tokens);
+    $("combined").innerHTML = `${fmt(secs > 0.2 ? tokens / secs : 0)}<small>tok/s</small>`;
+  }
+  for (const t of Object.values(tiles)) {
+    if (!t.dirty) continue;
+    t.dirty = false;
+    const lines = t.text.split("\n");
+    const tail = lines.slice(-9).join("\n");
+    t.pre.innerHTML = tail.replace(/[&<]/g, (c) => (c === "&" ? "&amp;" : "&lt;")).replace(/^(import .*|export .*)$/gm, '<span class="imp">$1</span>');
+    t.bar.style.width = `${Math.min(100, (100 * t.chars) / t.total)}%`;
+  }
+  if (!done) timer = requestAnimationFrame(render);
+}
+
+function reset() {
+  done = false;
+  for (const t of Object.values(tiles)) Object.assign(t, { text: "", chars: 0, tokens: 0, exact: false, done: false, dirty: true }), t.el.className = "tile", t.rate.textContent = "queued";
+  $("testsBig").className = "big idle"; $("testsBig").textContent = "waiting";
+  $("elapsed").innerHTML = `0.00<small>s</small>`; $("tokens").textContent = "0"; $("combined").innerHTML = `0<small>tok/s</small>`; $("peak").innerHTML = `–<small>tok/s</small>`;
+}
+
+function busy(on, label) {
+  $("go").disabled = on;
+  $("go").textContent = on ? "Migrating…" : label || "Run again";
+}
+
+function handle(e) {
+  if (e.type === "agent-start") {
+    reset(); busy(true);
+    $("agent").className = "agent busy";
+    $("agentText").textContent = "Kimi reads the overnight skill and calls its exec tool: node migrate.mjs --json";
+  } else if (e.type === "agent-done") {
+    $("agent").className = "agent";
+    $("agentText").textContent = e.ok ? e.final.replace(/\s*\n+\s*/g, " · ").replace(/[*`]/g, "") : `agent error: ${e.error || "no reply"}`;
+    busy(false);
+  } else if (e.type === "start") {
+    if (!$("go").disabled) { reset(); busy(true); }
+  } else if (e.type === "plan") {
+    for (const p of e.pieces) if (tiles[p.id]) tiles[p.id].total = p.chars;
+    t0 = performance.now();
+    cancelAnimationFrame(timer);
+    timer = requestAnimationFrame(render);
+  } else if (e.type === "progress") {
+    const t = tiles[e.id];
+    if (!t) return;
+    if (!t.text) { t.el.className = "tile live"; t.rate.textContent = "streaming"; }
+    t.text += e.text; t.chars = e.chars; t.dirty = true;
+  } else if (e.type === "recheck") {
+    const t = tiles[e.id]; if (t) { t.text = ""; t.chars = 0; t.dirty = true; t.el.className = "tile live"; t.rate.textContent = "rechecking"; }
+  } else if (e.type === "retry") {
+    const t = tiles[e.id]; if (t) t.rate.textContent = "rate-limited";
+  } else if (e.type === "file-done") {
+    const t = tiles[e.id];
+    if (!t) return;
+    t.tokens = e.tokens; t.exact = true; t.done = true; t.chars = t.total; t.dirty = true;
+    t.el.className = "tile done";
+    t.rate.textContent = e.tps ? `${fmt(e.tps)} tok/s` : "done";
+  } else if (e.type === "migrated") {
+    done = true;
+    render();
+    $("elapsed").innerHTML = `${(e.wallMs / 1000).toFixed(2)}<small>s</small>`;
+    $("tokens").textContent = fmt(e.tokens);
+    $("tokNote").textContent = `${e.files} files, ${e.pieces} pieces, ${fmt(e.lines)} lines`;
+    $("combined").innerHTML = `${fmt(e.combinedTps)}<small>tok/s</small>`;
+    $("peak").innerHTML = `${fmt(e.peakTps)}<small>tok/s</small>`;
+    $("meanNote").textContent = `mean of ${e.pieces} streams: ${fmt(e.meanTps)} tok/s, Cerebras server time`;
+    $("testsBig").className = "big idle"; $("testsBig").textContent = `running ${fmt(target.baselineTests)} tests…`;
+    showDiff();
+  } else if (e.type === "tests-done") {
+    const s = e.stats;
+    if (s && s.failures === 0) {
+      $("testsBig").className = "big pass";
+      $("testsBig").textContent = `${fmt(s.passes)} passing`;
+      $("testsLine").textContent = `0 failing, in ${(s.duration / 1000).toFixed(2)} s. The whole suite, untouched, against Kimi's ES-module core.`;
+    } else {
+      $("testsBig").className = "big fail";
+      $("testsBig").textContent = s ? `${fmt(s.passes)} passing · ${s.failures} failing` : "suite crashed";
+      $("testsLine").textContent = (e.failures[0] && `${e.failures[0].title}: ${e.failures[0].err}`) || e.stderr.split("\n").find((l) => /Error/.test(l)) || "";
+    }
+    if ($("agent").className !== "agent busy") busy(false);
+  } else if (e.type === "error") {
+    $("testsBig").className = "big fail"; $("testsBig").textContent = "error"; $("testsLine").textContent = e.message;
+    busy(false);
+  }
+}
+
+function run() {
+  busy(true);
+  if (location.hash.includes("direct")) fetch("/api/run").then((r) => r.text()).catch(() => {});
+  else fetch("/api/agent", { method: "POST" }).then((r) => { if (!r.ok) busy(false); });
+}
+
+async function showDiff() {
+  const [text, stats] = await Promise.all([fetch("/api/diff?file=lib/express.js").then((r) => r.text()), fetch("/api/stats").then((r) => r.json())]);
+  $("diffTitle").textContent = `lib/express.js, before → after · all of lib/: +${stats.added} −${stats.removed} lines`;
+  const body = text.split("\n").filter((l) => !/^(diff |index |--- |\+\+\+ |new file|similarity)/.test(l));
+  $("diff").className = "";
+  $("diff").innerHTML = body.slice(0, 40).map((l) => {
+    const esc = l.replace(/[&<]/g, (c) => (c === "&" ? "&amp;" : "&lt;"));
+    if (l.startsWith("+")) return `<span class="add">${esc}</span>`;
+    if (l.startsWith("-")) return `<span class="del">${esc}</span>`;
+    if (l.startsWith("@@")) return `<span class="hunk">${esc}</span>`;
+    return esc;
+  }).join("\n");
+}
+
+$("go").onclick = run;
+new EventSource("/api/events").onmessage = (m) => handle(JSON.parse(m.data));
+load();
+if (location.hash.includes("auto")) setTimeout(run, 1500);
+</script>
+</body>
+</html>
