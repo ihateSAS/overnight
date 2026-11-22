@@ -3,146 +3,185 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="theme-color" content="#06070c" />
+<meta name="theme-color" content="#0c0d0f" />
+<link rel="icon" href="/logo.svg" type="image/svg+xml" />
 <title>Overnight: migrate a codebase to ES modules in seconds</title>
 <style>
 @font-face { font-family: "Manrope"; font-weight: 300 800; font-display: swap; src: url("/fonts/manrope-latin.woff2") format("woff2"); }
 :root {
-  --bg: #06070c;
-  --panel: #0c0e16;
-  --panel-2: #10131d;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-2: rgba(255, 255, 255, 0.16);
-  --text: #f1f2f6;
-  --muted: #a9afbf;
-  --dim: #6c7385;
-  --amber: #ffb547;
-  --amber-soft: rgba(255, 181, 71, 0.12);
-  --green: #3ddc84;
-  --green-soft: rgba(61, 220, 132, 0.12);
-  --red: #ff5d5d;
+  --bg: #0c0d0f;
+  --card: #131417;
+  --inset: #0f1012;
+  --line: #232428;
+  --line-strong: #34363b;
+  --text: #f5f5f6;
+  --text-2: #b4b4b8;
+  --text-3: #8e8e93;
+  --accent: #f2b33d;
+  --pos: #3fc07a;
+  --pos-tint: #15261b;
+  --neg: #e5566f;
+  --neg-tint: #2c1a20;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --gap: 16px;
+  --r-card: 8px;
+  --r-tile: 6px;
+  --r-tag: 4px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-body {
-  min-height: 100vh;
-  background:
-    radial-gradient(1200px 500px at 85% -10%, rgba(255, 181, 71, 0.10), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(90, 110, 255, 0.10), transparent 60%),
-    var(--bg);
+.wrap {
+  height: 100vh; min-height: 960px; max-width: 1920px; margin: 0 auto; padding: 0 64px 20px;
+  display: grid; grid-template-rows: 72px auto auto minmax(0, 1fr) 196px auto; row-gap: var(--gap);
 }
-.wrap { max-width: 1800px; margin: 0 auto; padding: 22px 40px 18px; }
-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.brand { display: flex; align-items: center; gap: 14px; }
-.moon { width: 34px; height: 34px; border-radius: 50%; box-shadow: inset -9px -3px 0 0 var(--amber); transform: rotate(-20deg); }
-.brand h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
-.brand p { margin: 0; color: var(--muted); font-size: 15px; }
-.chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 14px; color: var(--muted); }
-.chip b { color: var(--text); font-weight: 700; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 1.6s ease-in-out infinite; }
-@keyframes pulse { 50% { opacity: 0.45; box-shadow: 0 0 4px var(--green); } }
 
-.task { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
-.task .what { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
-.task .what .arrow { color: var(--amber); padding: 0 8px; }
-.task .sub { color: var(--muted); font-size: 15px; margin-top: 6px; font-family: var(--mono); }
-button.go { font: inherit; font-size: 19px; font-weight: 800; padding: 16px 30px; border-radius: 14px; border: 0; background: var(--amber); color: #120c02; cursor: pointer; letter-spacing: -0.01em; box-shadow: 0 10px 40px rgba(255, 181, 71, 0.25); }
-button.go:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+/* top bar */
+.top { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); margin: 0 -64px; padding: 0 64px; }
+.lockup { display: flex; align-items: center; gap: 10px; }
+.lockup img { width: 34px; height: 34px; display: block; }
+.lockup b { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+.lockup span { color: var(--text-3); font-size: 16px; margin-left: 18px; padding-left: 18px; border-left: 1px solid var(--line); }
+.stack { display: flex; align-items: center; gap: 28px; font-size: 15px; color: var(--text-3); }
+.stack div b { color: var(--text); font-weight: 500; margin-left: 6px; }
 
-.meters { margin-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.meter { padding: 12px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
-.meter .k { color: var(--dim); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
-.meter .v { font-size: 42px; font-weight: 800; letter-spacing: -0.035em; margin-top: 4px; font-variant-numeric: tabular-nums; }
-.meter .v small { font-size: 18px; color: var(--muted); font-weight: 700; margin-left: 6px; letter-spacing: 0; }
-.meter .n { color: var(--dim); font-size: 13px; margin-top: 2px; min-height: 18px; }
-.meter.hot .v { color: var(--amber); }
+/* task */
+.task { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; }
+.task h2 { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -0.015em; }
+.task h2 em { font-style: normal; color: var(--text-2); font-weight: 500; }
+.task .sub { color: var(--text-3); font-size: 16px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.agent { margin-top: 12px; font-size: 17px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1450px; display: flex; align-items: center; gap: 10px; }
+.agent .tag { flex: none; font-size: 14px; font-weight: 500; color: var(--text-2); border: 1px solid var(--line-strong); border-radius: var(--r-tag); padding: 2px 10px; display: inline-flex; align-items: center; gap: 8px; }
+.agent .tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+.agent.busy .tag::before { background: var(--accent); animation: live 1s ease-in-out infinite; }
+@keyframes live { 50% { opacity: 0.35; } }
+.agent #agentText { overflow: hidden; text-overflow: ellipsis; }
+button.go { flex: none; min-width: 188px; font: inherit; font-size: 17px; font-weight: 600; height: 48px; padding: 0 24px; border-radius: var(--r-tile); border: 0; background: var(--text); color: #0c0d0f; cursor: pointer; }
+button.go:disabled { background: var(--card); color: var(--text-3); border: 1px solid var(--line); cursor: default; }
 
-.grid { margin-top: 14px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-.tile { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s, box-shadow 0.2s; }
-.tile .top { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 12px 8px; font-size: 13px; }
-.tile .top b { font-family: var(--mono); font-size: 13px; }
-.tile .top span { color: var(--dim); }
-.tile pre { margin: 0; height: 68px; overflow: hidden; padding: 6px 12px; font: 10.5px/1.45 var(--mono); color: #c9cfdc; background: #080a10; white-space: pre; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.tile pre .imp { color: var(--amber); }
-.tile .bot { display: flex; align-items: center; gap: 10px; padding: 8px 12px 10px; font-size: 13px; }
-.bar { flex: 1; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
-.bar i { display: block; height: 100%; width: 0; background: var(--amber); transition: width 0.08s linear; }
-.tile .rate { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; color: var(--dim); }
-.tile.live { border-color: rgba(255, 181, 71, 0.55); box-shadow: 0 0 0 1px rgba(255, 181, 71, 0.15), 0 0 30px rgba(255, 181, 71, 0.08); }
-.tile.live .rate { color: var(--amber); }
-.tile.done { border-color: rgba(61, 220, 132, 0.35); }
-.tile.done .bar i { background: var(--green); }
-.tile.done .rate { color: var(--green); }
+/* metrics: one strip, four columns, the combined speed leads */
+.metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: var(--gap); border: 1px solid var(--line); border-radius: var(--r-card); background: var(--card); }
+.m { position: relative; padding: 16px 8px 16px 0; min-width: 0; display: grid; grid-template-rows: auto 1fr auto; }
+.m::before { content: ""; position: absolute; left: calc(var(--gap) / -2); top: 0; bottom: 0; width: 1px; background: var(--line); }
+.m.lead { grid-column: span 2; padding-left: 24px; }
+.m.lead::before { display: none; }
+.m .k { color: var(--text-2); font-size: 16px; font-weight: 500; }
+.m .v { align-self: end; font-size: 48px; font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.m .v small { font-size: 20px; color: var(--text-2); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+.m .n { color: var(--text-3); font-size: 14px; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m.lead .v { font-size: 76px; color: var(--accent); }
+.m.lead .v small { font-size: 26px; }
+.sep { font-feature-settings: "tnum" 0; font-variant-numeric: proportional-nums; }
 
-.verdict { margin-top: 14px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; }
-.card { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); padding: 14px 24px; height: 180px; overflow: hidden; }
-.card .k { color: var(--dim); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
-.tests .big { font-size: 58px; font-weight: 800; letter-spacing: -0.04em; margin-top: 6px; font-variant-numeric: tabular-nums; }
-.tests .big.pass { color: var(--green); }
-.tests .big.fail { color: var(--red); }
-.tests .line { color: var(--muted); font-size: 16px; margin-top: 4px; }
-.diff pre { margin: 8px 0 0; font: 11.5px/1.45 var(--mono); max-height: 128px; overflow: hidden; white-space: pre; }
-.diff .add { color: var(--green); }
-.diff .del { color: #ff8a8a; }
-.diff .hunk { color: var(--dim); }
-.foot { margin-top: 10px; color: var(--dim); font-size: 12.5px; line-height: 1.5; }
-.idle { color: var(--dim); }
-.agent { margin-top: 8px; font-size: 14.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1450px; }
-.agent .claw { display: inline-block; font-weight: 800; color: #120c02; background: var(--amber); border-radius: 6px; padding: 1px 8px; margin-right: 6px; font-size: 12.5px; letter-spacing: 0.02em; }
-.agent.busy #agentText::after { content: "…"; }
+/* streams: the product's own element */
+.grid { display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 3), minmax(0, 1fr)); gap: var(--gap); min-height: 0; }
+.tile { border: 1px solid var(--line); border-radius: var(--r-tile); background: var(--card); overflow: hidden; display: flex; flex-direction: column; min-height: 0; transition: border-color 0.3s var(--ease); }
+.tile .hd { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 12px; font-size: 14px; }
+.tile .hd b { font-family: var(--mono); font-size: 14px; font-weight: 500; }
+.tile .hd span { color: var(--text-3); font-size: 14px; }
+.tile pre { flex: 1; min-height: 0; margin: 0; overflow: hidden; padding: 0 12px 6px; font: 13px/1.5 var(--mono); color: var(--text-2); background: var(--inset); white-space: pre; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; justify-content: flex-end; }
+.tile pre { -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 4px, #000 30px); mask-image: linear-gradient(to bottom, transparent 0, transparent 4px, #000 30px); }
+.tile pre .imp { color: var(--text); }
+.tile .ft { display: flex; align-items: center; gap: 12px; padding: 8px 12px; font-size: 15px; }
+.bar { flex: 1; height: 4px; border-radius: 4px; background: rgba(245, 245, 246, 0.07); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 100%; transform: scaleX(0); transform-origin: left; background: var(--text-3); }
+.tile .rate { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 96px; text-align: right; color: var(--text-3); }
+.tile.live { border-color: var(--line-strong); }
+.tile.live .bar i { background: var(--accent); }
+.tile.live .rate { color: var(--text-2); }
+.tile.done .bar i { background: var(--line-strong); }
+.tile.done .rate { color: var(--text); }
+.tile.fastest { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: #1a1710; }
+.tile.fastest .rate { font-size: 17px; }
+.tile.fastest .bar i { background: var(--accent); }
+.tile.fastest .rate { color: var(--accent); }
+.tile.fastest .hd span { color: var(--accent); }
+
+/* proof */
+.verdict { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--gap); min-height: 0; }
+.verdict .tests { grid-column: span 2; }
+.verdict .diff { grid-column: span 3; }
+.card { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--card); padding: 16px 24px; overflow: hidden; min-height: 0; }
+.card .k { color: var(--text-2); font-size: 16px; font-weight: 500; }
+.tests .big { font-size: 52px; font-weight: 600; letter-spacing: -0.02em; margin-top: 10px; line-height: 1.1; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 14px; }
+.tests .big svg { flex: none; display: none; }
+.tests .big.pass svg { display: block; }
+.tests .big.pass .word { color: var(--text-2); font-weight: 500; }
+.tests .big.fail { color: var(--neg); }
+.tests .big.idle { color: var(--text-2); }
+.tests .line { color: var(--text-2); font-size: 16px; margin-top: 10px; line-height: 1.45; }
+.diff pre { margin: 10px -24px 0; font: 14px/1.55 var(--mono); white-space: pre; color: var(--text-2); }
+.diff pre span { display: block; padding: 0 24px; }
+.diff pre.before span { color: var(--text-3); }
+.diff .add { color: var(--text); background: rgba(63, 192, 122, 0.09); box-shadow: inset 3px 0 0 var(--pos); }
+.diff .del { color: #a7707b; box-shadow: inset 3px 0 0 rgba(229, 86, 111, 0.55); }
+.diff .hunk { color: var(--text-3); }
+.idle { color: var(--text-3); }
+.foot { color: var(--text-3); font-size: 14px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.foot code { font-family: var(--mono); font-size: 13px; color: var(--text-2); }
+/* keeps the headless recorder receiving frames once the page is still; invisible */
+.tick { position: fixed; right: 0; bottom: 0; width: 2px; height: 2px; background: var(--bg); animation: tick 1s steps(2) infinite; }
+@keyframes tick { 50% { background: #0c0d10; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div class="brand">
-      <div class="moon"></div>
-      <div>
-        <h1>Overnight</h1>
-        <p>The migration you'd leave running overnight, done in seconds.</p>
-      </div>
+  <header class="top">
+    <div class="lockup">
+      <img src="/logo.svg" alt="" />
+      <b>Overnight</b>
+      <span>Whole-codebase migrations in seconds, checked by the project's own tests</span>
     </div>
-    <div class="chip"><span class="dot"></span><b id="model">Kimi K3.1 Pro</b> on Cerebras</div>
+    <div class="stack">
+      <div>Model<b id="model">Kimi K3.1 Pro</b></div>
+      <div>Inference<b>Cerebras</b></div>
+      <div>Agent<b>OpenClaw</b></div>
+    </div>
   </header>
 
   <section class="task">
-    <div>
-      <div class="what">expressjs/express <span class="arrow">CommonJS → ES modules</span></div>
-      <div class="sub" id="sub">loading…</div>
-      <div class="agent" id="agent"><span class="claw">OpenClaw agent</span> <span id="agentText">idle · overnight skill loaded</span></div>
+    <div style="min-width:0">
+      <h2>expressjs/express <em>· CommonJS → ES modules</em></h2>
+      <div class="sub" id="sub">loading</div>
+      <div class="agent" id="agent"><span class="tag">Agent</span><span id="agentText">Idle. The overnight skill is loaded.</span></div>
     </div>
     <button class="go" id="go">Migrate to ESM</button>
   </section>
 
-  <section class="meters">
-    <div class="meter"><div class="k">Elapsed</div><div class="v" id="elapsed">0.00<small>s</small></div><div class="n" id="elapsedNote">wall clock, first request to last file written</div></div>
-    <div class="meter"><div class="k">Output tokens</div><div class="v" id="tokens">0</div><div class="n" id="tokNote">&nbsp;</div></div>
-    <div class="meter hot"><div class="k">Combined speed</div><div class="v" id="combined">0<small>tok/s</small></div><div class="n">all streams together, tokens ÷ wall clock</div></div>
-    <div class="meter"><div class="k">Fastest stream</div><div class="v" id="peak">–<small>tok/s</small></div><div class="n" id="meanNote">Cerebras server time, per call</div></div>
+  <section class="metrics">
+    <div class="m lead"><div class="k">Combined speed, all streams</div><div class="v" id="combined">0<small>tok/s</small></div><div class="n">Output tokens ÷ wall clock, queueing included</div></div>
+    <div class="m"><div class="k">Fastest stream</div><div class="v" id="peak">0<small>tok/s</small></div><div class="n" id="meanNote">Cerebras server time, per call</div></div>
+    <div class="m"><div class="k">Wall clock</div><div class="v" id="elapsed">0.00<small>s</small></div><div class="n" id="elapsedNote">First request to last file written</div></div>
+    <div class="m"><div class="k">Output tokens</div><div class="v" id="tokens">0</div><div class="n" id="tokNote">All streams together</div></div>
   </section>
 
   <section class="grid" id="grid"></section>
 
   <section class="verdict">
     <div class="card tests">
-      <div class="k">Express's own test suite, run on Kimi's ES modules</div>
-      <div class="big idle" id="testsBig">waiting</div>
-      <div class="line" id="testsLine">index.js and all 89 test files stay CommonJS and untouched; they load the new ES-module core through require().</div>
+      <div class="k">Express's own test suite, on the new ES modules</div>
+      <div class="big idle" id="testsBig"><span>1<i class="sep">,</i>290 tests</span></div>
+      <div class="line" id="testsLine">Express's own suite. index.js and all 89 test files stay CommonJS and untouched, and load the new ES-module core through require().</div>
     </div>
     <div class="card diff">
-      <div class="k" id="diffTitle">lib/express.js, before → after</div>
-      <pre id="diff" class="idle">The diff appears here when the run finishes.</pre>
+      <div class="k" id="diffTitle">lib/express.js today</div>
+      <pre id="diff" class="before"></pre>
     </div>
   </section>
 
-  <div class="foot">Every piece is one streaming call to <span id="model2">moonshotai-kimi-k3.1-pro-trial</span> at reasoning low, temperature 0. Per-stream speed is Cerebras' own <code>completion_tokens / time_info.completion_time</code>. Combined speed is total output tokens divided by wall-clock seconds, so queueing and network count against it.</div>
+  <div class="foot">Each piece is one streaming call to <span id="model2">moonshotai-kimi-k3.1-pro-trial</span>, reasoning low, temperature 0. Per-stream speed is Cerebras' own <code>completion_tokens / completion_time</code>. Combined speed is output tokens ÷ wall clock.</div>
 </div>
+<div class="tick" aria-hidden="true"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.round(n).toLocaleString("en-US");
-let tiles = {}, t0 = 0, timer = 0, done = false, target = null;
+const fmtH = (n) => fmt(n).replace(/,/g, '<i class="sep">,</i>');
+const esc = (s) => s.replace(/[&<]/g, (c) => (c === "&" ? "&amp;" : "&lt;"));
+const CHECK = '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#3fc07a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12.5 2.8 2.8L16.5 9"/></svg>';
+let tiles = {}, t0 = 0, timer = 0, done = false, target = null, peakSoFar = 0;
+
+function setTests(cls, html) { $("testsBig").className = `big ${cls}`; $("testsBig").innerHTML = cls === "pass" ? html : `<span>${html}</span>`; }
 
 async function load() {
   target = await fetch("/api/target").then((r) => r.json());
@@ -150,59 +189,61 @@ async function load() {
   const parts = target.files.reduce((s, f) => s + f.parts, 0);
   $("sub").textContent = `@${target.commit} · lib/ · ${target.files.length} files · ${fmt(lines)} lines · split into ${parts} pieces · ${fmt(target.baselineTests)} tests`;
   $("model2").textContent = target.model;
+  const cols = parts <= 15 ? 5 : parts <= 18 ? 6 : parts <= 21 ? 7 : 8;
   const grid = $("grid");
+  grid.style.setProperty("--cols", cols);
+  grid.style.setProperty("--rows", Math.ceil(parts / cols));
   grid.innerHTML = "";
   for (const f of target.files) for (let i = 0; i < f.parts; i++) {
     const id = f.parts > 1 ? `${f.file}#${i + 1}` : f.file;
     const el = document.createElement("div");
     el.className = "tile";
-    el.innerHTML = `<div class="top"><b>${f.file.replace("lib/", "")}</b><span>${f.parts > 1 ? `part ${i + 1}/${f.parts}` : "whole file"}</span></div><pre></pre><div class="bot"><div class="bar"><i></i></div><div class="rate">queued</div></div>`;
+    el.innerHTML = `<div class="hd"><b>${f.file.replace("lib/", "")}</b><span>${f.parts > 1 ? `part ${i + 1} of ${f.parts}` : "whole file"}</span></div><pre><div></div></pre><div class="ft"><div class="bar"><i></i></div><div class="rate">queued</div></div>`;
     grid.appendChild(el);
-    tiles[id] = { el, pre: el.querySelector("pre"), bar: el.querySelector(".bar i"), rate: el.querySelector(".rate"), text: "", chars: 0, total: 1, tokens: 0, exact: false, done: false };
+    tiles[id] = { el, pre: el.querySelector("pre div"), bar: el.querySelector(".bar i"), rate: el.querySelector(".rate"), text: "", chars: 0, total: 1, tokens: 0, tps: 0, exact: false, done: false };
   }
 }
 
 function render() {
-  const now = performance.now();
-  const secs = (now - t0) / 1000;
+  const secs = (performance.now() - t0) / 1000;
   if (!done) $("elapsed").innerHTML = `${secs.toFixed(2)}<small>s</small>`;
   let tokens = 0;
   for (const t of Object.values(tiles)) tokens += t.exact ? t.tokens : t.chars / 3.4;
   if (!done) {
-    $("tokens").textContent = fmt(tokens);
-    $("combined").innerHTML = `${fmt(secs > 0.2 ? tokens / secs : 0)}<small>tok/s</small>`;
+    $("tokens").innerHTML = fmtH(tokens);
+    $("combined").innerHTML = `${fmtH(secs > 0.2 ? tokens / secs : 0)}<small>tok/s</small>`;
   }
   for (const t of Object.values(tiles)) {
     if (!t.dirty) continue;
     t.dirty = false;
-    const lines = t.text.split("\n");
-    const tail = lines.slice(-9).join("\n");
-    t.pre.innerHTML = tail.replace(/[&<]/g, (c) => (c === "&" ? "&amp;" : "&lt;")).replace(/^(import .*|export .*)$/gm, '<span class="imp">$1</span>');
-    t.bar.style.width = `${Math.min(100, (100 * t.chars) / t.total)}%`;
+    const tail = t.text.split("\n").slice(-12).join("\n");
+    t.pre.innerHTML = esc(tail).replace(/^(import .*|export .*)$/gm, '<span class="imp">$1</span>');
+    t.bar.style.transform = `scaleX(${Math.min(1, t.chars / t.total)})`;
   }
   if (!done) timer = requestAnimationFrame(render);
 }
 
 function reset() {
   done = false;
-  for (const t of Object.values(tiles)) Object.assign(t, { text: "", chars: 0, tokens: 0, exact: false, done: false, dirty: true }), t.el.className = "tile", t.rate.textContent = "queued";
-  $("testsBig").className = "big idle"; $("testsBig").textContent = "waiting";
-  $("elapsed").innerHTML = `0.00<small>s</small>`; $("tokens").textContent = "0"; $("combined").innerHTML = `0<small>tok/s</small>`; $("peak").innerHTML = `–<small>tok/s</small>`;
+  for (const t of Object.values(tiles)) Object.assign(t, { text: "", chars: 0, tokens: 0, tps: 0, exact: false, done: false, dirty: true }), t.el.className = "tile", t.rate.textContent = "queued";
+  peakSoFar = 0;
+  setTests("idle", `${fmtH(target.baselineTests)} tests`);
+  $("elapsed").innerHTML = `0.00<small>s</small>`; $("tokens").textContent = "0"; $("combined").innerHTML = `0<small>tok/s</small>`; $("peak").innerHTML = `0<small>tok/s</small>`;
 }
 
 function busy(on, label) {
   $("go").disabled = on;
-  $("go").textContent = on ? "Migrating…" : label || "Run again";
+  $("go").textContent = on ? "Migrating" : label || "Run again";
 }
 
 function handle(e) {
   if (e.type === "agent-start") {
-    reset(); busy(true);
+    reset(); busy(true); showBefore();
     $("agent").className = "agent busy";
-    $("agentText").textContent = "Kimi reads the overnight skill and calls its exec tool: node migrate.mjs --json";
+    $("agentText").textContent = "Kimi reads the overnight skill and runs the migration with its exec tool";
   } else if (e.type === "agent-done") {
     $("agent").className = "agent";
-    $("agentText").textContent = e.ok ? e.final.replace(/\s*\n+\s*/g, " · ").replace(/[*`]/g, "") : `agent error: ${e.error || "no reply"}`;
+    $("agentText").textContent = e.ok ? `Kimi replied: ${e.final.replace(/[*`]/g, "").replace(/\.?\s*\n+\s*/g, ". ").trim()}` : `Agent error: ${e.error || "no reply"}`;
     busy(false);
   } else if (e.type === "start") {
     if (!$("go").disabled) { reset(); busy(true); }
@@ -223,34 +264,36 @@ function handle(e) {
   } else if (e.type === "file-done") {
     const t = tiles[e.id];
     if (!t) return;
-    t.tokens = e.tokens; t.exact = true; t.done = true; t.chars = t.total; t.dirty = true;
+    t.tokens = e.tokens; t.tps = e.tps || 0; t.exact = true; t.done = true; t.chars = t.total; t.dirty = true;
     t.el.className = "tile done";
-    t.rate.textContent = e.tps ? `${fmt(e.tps)} tok/s` : "done";
+    t.rate.innerHTML = e.tps ? `${fmtH(e.tps)} tok/s` : "done";
+    if (e.tps > peakSoFar) { peakSoFar = e.tps; $("peak").innerHTML = `${fmtH(peakSoFar)}<small>tok/s</small>`; }
   } else if (e.type === "migrated") {
     done = true;
     render();
+    const all = Object.values(tiles);
+    const best = all.find((t) => Math.round(t.tps) === Math.round(e.peakTps)) || all.reduce((a, b) => (b.tps > (a?.tps || 0) ? b : a), null);
+    if (best) { best.el.className = "tile done fastest"; best.el.querySelector(".hd span").textContent = "fastest stream"; }
     $("elapsed").innerHTML = `${(e.wallMs / 1000).toFixed(2)}<small>s</small>`;
-    $("tokens").textContent = fmt(e.tokens);
+    $("tokens").innerHTML = fmtH(e.tokens);
     $("tokNote").textContent = `${e.files} files, ${e.pieces} pieces, ${fmt(e.lines)} lines`;
-    $("combined").innerHTML = `${fmt(e.combinedTps)}<small>tok/s</small>`;
-    $("peak").innerHTML = `${fmt(e.peakTps)}<small>tok/s</small>`;
-    $("meanNote").textContent = `mean of ${e.pieces} streams: ${fmt(e.meanTps)} tok/s, Cerebras server time`;
-    $("testsBig").className = "big idle"; $("testsBig").textContent = `running ${fmt(target.baselineTests)} tests…`;
+    $("combined").innerHTML = `${fmtH(e.combinedTps)}<small>tok/s</small>`;
+    $("peak").innerHTML = `${fmtH(e.peakTps)}<small>tok/s</small>`;
+    $("meanNote").textContent = `Mean of ${e.pieces}: ${fmt(e.meanTps)} tok/s · Cerebras server time`;
+    setTests("idle", `Running ${fmt(target.baselineTests)} tests`);
     showDiff();
   } else if (e.type === "tests-done") {
     const s = e.stats;
     if (s && s.failures === 0) {
-      $("testsBig").className = "big pass";
-      $("testsBig").textContent = `${fmt(s.passes)} passing`;
+      setTests("pass", `${CHECK}<span>${fmtH(s.passes)} <span class="word">passing</span></span>`);
       $("testsLine").textContent = `0 failing, in ${(s.duration / 1000).toFixed(2)} s. The whole suite, untouched, against Kimi's ES-module core.`;
     } else {
-      $("testsBig").className = "big fail";
-      $("testsBig").textContent = s ? `${fmt(s.passes)} passing · ${s.failures} failing` : "suite crashed";
+      setTests("fail", s ? `${fmt(s.passes)} passing · ${s.failures} failing` : "Suite crashed");
       $("testsLine").textContent = (e.failures[0] && `${e.failures[0].title}: ${e.failures[0].err}`) || e.stderr.split("\n").find((l) => /Error/.test(l)) || "";
     }
     if ($("agent").className !== "agent busy") busy(false);
   } else if (e.type === "error") {
-    $("testsBig").className = "big fail"; $("testsBig").textContent = "error"; $("testsLine").textContent = e.message;
+    setTests("fail", "Error"); $("testsLine").textContent = e.message;
     busy(false);
   }
 }
@@ -261,23 +304,36 @@ function run() {
   else fetch("/api/agent", { method: "POST" }).then((r) => { if (!r.ok) busy(false); });
 }
 
+async function diffLines() {
+  const text = await fetch("/api/diff?file=lib/express.js").then((r) => r.text());
+  return text.split("\n").filter((l) => l && !/^(diff |index |--- |\+\+\+ |new file|similarity|\\ No newline|@@)/.test(l));
+}
+
+// Before a run: the CommonJS lines that are about to change, as they are today.
+async function showBefore() {
+  const dels = (await diffLines()).filter((l) => l.startsWith("-")).slice(0, 6);
+  $("diffTitle").textContent = "lib/express.js today";
+  $("diff").className = "before";
+  $("diff").innerHTML = dels.map((l) => `<span>${esc(l.slice(1))}</span>`).join("");
+}
+
+// After a run: each removed require next to the import that replaced it.
 async function showDiff() {
-  const [text, stats] = await Promise.all([fetch("/api/diff?file=lib/express.js").then((r) => r.text()), fetch("/api/stats").then((r) => r.json())]);
+  const [body, stats] = await Promise.all([diffLines(), fetch("/api/stats").then((r) => r.json())]);
   $("diffTitle").textContent = `lib/express.js, before → after · all of lib/: +${stats.added} −${stats.removed} lines`;
-  const body = text.split("\n").filter((l) => !/^(diff |index |--- |\+\+\+ |new file|similarity)/.test(l));
+  const dels = body.filter((l) => l.startsWith("-")), adds = body.filter((l) => l.startsWith("+"));
+  const rows = [];
+  for (let k = 0; k < 3 && (dels[k] || adds[k]); k++) {
+    if (dels[k]) rows.push(`<span class="del">${esc(dels[k])}</span>`);
+    if (adds[k]) rows.push(`<span class="add">${esc(adds[k])}</span>`);
+  }
   $("diff").className = "";
-  $("diff").innerHTML = body.slice(0, 40).map((l) => {
-    const esc = l.replace(/[&<]/g, (c) => (c === "&" ? "&amp;" : "&lt;"));
-    if (l.startsWith("+")) return `<span class="add">${esc}</span>`;
-    if (l.startsWith("-")) return `<span class="del">${esc}</span>`;
-    if (l.startsWith("@@")) return `<span class="hunk">${esc}</span>`;
-    return esc;
-  }).join("\n");
+  $("diff").innerHTML = rows.join("");
 }
 
 $("go").onclick = run;
 new EventSource("/api/events").onmessage = (m) => handle(JSON.parse(m.data));
-load();
+load().then(() => { setTests("idle", `${fmtH(target.baselineTests)} tests`); showBefore(); });
 if (location.hash.includes("auto")) setTimeout(run, 1500);
 </script>
 </body>

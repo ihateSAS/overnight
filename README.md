@@ -1,8 +1,9 @@
-<h1 align="center">🌙 Overnight</h1>
+<p align="center"><img src="public/logo.svg" width="64" alt="Overnight logo"></p>
+<h1 align="center">Overnight</h1>
 
 <p align="center">
   <b>The migration you'd leave running overnight, done in seconds.</b><br>
-  An OpenClaw agent moves Express's core from CommonJS to ES modules with Kimi K3.1 Pro on Cerebras in 2.77 s,
+  An OpenClaw agent moves all of Express's lib/ from CommonJS to ES modules with Kimi K3.1 Pro on Cerebras in 3.54 s,
   and Express's own 1,290 tests pass against the result.
 </p>
 
@@ -35,21 +36,21 @@
 
 ## At a glance
 
-One recorded run, start to finish (take d-1, the run in the video):
+One recorded run, start to finish (take h-2, the run in the video):
 
 | | |
 |---|---|
 | Target | [expressjs/express](https://github.com/expressjs/express) at `43fca52`, all of `lib/`: 6 files, 2,765 lines |
 | Work | split into 15 pieces, all 15 sent to Kimi K3.1 Pro at the same moment |
-| Wall clock | **2.77 s** from the first request to the last file written |
-| Output | 17,703 tokens of rewritten JavaScript |
-| Combined speed | **6,384 tok/s**, all streams together (tokens ÷ wall clock) |
-| Fastest single stream | 1,590 tok/s; mean of the 15: 1,109 tok/s (Cerebras server time) |
+| Wall clock | **3.54 s** from the first request to the last file written |
+| Output | 17,653 tokens of rewritten JavaScript |
+| Combined speed | **4,981 tok/s**, all streams together (tokens ÷ wall clock) |
+| Fastest single stream | 1,530 tok/s; mean of the 15: 1,082 tok/s (Cerebras server time) |
 | Proof | Express's own suite: **1,290 passing, 0 failing**, with `index.js` and all 89 test files untouched |
 
 The diff is what a careful human would write: `require` becomes `import`, `module.exports` becomes
 `export default`, local paths gain `.js`, and every other line is byte-for-byte the same
-(+95 / −86 lines across the six files in that run).
+(+92 / −83 lines across the six files in that run).
 
 ## How it works
 
@@ -78,7 +79,7 @@ watch fifteen code windows fill at the same time, then the test count.
   last chunk of each call, the same ratio the hackathon's speed patch reads. Reasoning tokens count.
 - **Combined speed** is total output tokens divided by wall-clock seconds from the first request to the
   last file written. Queueing, network and our own code all count against it, so nothing flatters it.
-  Across our recorded takes it ranged from about 2,000 to 6,400 tok/s: when the shared trial endpoint
+  Across our recorded takes it ranged from about 1,000 to 6,400 tok/s: when the shared trial endpoint
   queues some requests the wall clock grows and the number drops, and the page shows that as it happens.
 - **The rate limit is real.** The trial endpoint allows 50K uncached tokens a minute, so runs here are
   spaced about 100 s apart.
@@ -119,8 +120,6 @@ targets/                Express before (express-cjs) and after (express-esm), cr
 
 ## Team
 
-- [ihateSAS](https://github.com/ihateSAS)
-- [flowerei](https://github.com/flowerei)
-- [memoirys](https://github.com/memoirys)
+Solo: [ihateSAS](https://github.com/ihateSAS)
 
 MIT licensed.

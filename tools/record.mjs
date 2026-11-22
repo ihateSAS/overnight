@@ -30,7 +30,7 @@ await page.evaluate(() => {
   const es = new EventSource("/api/events");
   es.onmessage = (m) => { const e = JSON.parse(m.data); if (["plan", "migrated", "tests-done", "agent-done"].includes(e.type)) window.__mark(e.type); };
 });
-await page.waitForFunction(() => /passing|failing|crashed|error/.test(document.getElementById("testsBig").textContent) && document.getElementById("agent").className === "agent" && !/^idle/.test(document.getElementById("agentText").textContent), { timeout: 240_000, polling: 200 });
+await page.waitForFunction(() => /passing|failing|crashed|error/i.test(document.getElementById("testsBig").textContent) && document.getElementById("agent").className === "agent" && !/^idle/i.test(document.getElementById("agentText").textContent), { timeout: 240_000, polling: 200 });
 await sleep(9000);
 await rec.stop();
 const read = await page.evaluate(() => Object.fromEntries(["elapsed", "tokens", "combined", "peak", "meanNote", "testsBig", "testsLine", "tokNote", "diffTitle", "agentText"].map((id) => [id, document.getElementById(id).textContent])));
