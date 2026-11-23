@@ -3,7 +3,7 @@
 
 <p align="center">
   <b>The migration you'd leave running overnight, done in seconds.</b><br>
-  An OpenClaw agent moves all of Express's lib/ from CommonJS to ES modules with Kimi K3.1 Pro on Cerebras in 3.54 s,
+  An OpenClaw agent moves all of Express's lib/ from CommonJS to ES modules with Kimi K3.1 Pro on Cerebras in 3.46 s,
   and Express's own 1,290 tests pass against the result.
 </p>
 
@@ -36,21 +36,21 @@
 
 ## At a glance
 
-One recorded run, start to finish (take h-2, the run in the video):
+One recorded run, start to finish (take j-2, the run in the video):
 
 | | |
 |---|---|
 | Target | [expressjs/express](https://github.com/expressjs/express) at `43fca52`, all of `lib/`: 6 files, 2,765 lines |
 | Work | split into 15 pieces, all 15 sent to Kimi K3.1 Pro at the same moment |
-| Wall clock | **3.54 s** from the first request to the last file written |
-| Output | 17,653 tokens of rewritten JavaScript |
-| Combined speed | **4,981 tok/s**, all streams together (tokens ÷ wall clock) |
-| Fastest single stream | 1,530 tok/s; mean of the 15: 1,082 tok/s (Cerebras server time) |
+| Wall clock | **3.46 s** from the first request to the last file written |
+| Output | 17,900 tokens of rewritten JavaScript |
+| Combined speed | **5,175 tok/s**, all streams together (tokens ÷ wall clock) |
+| Fastest single stream | 1,553 tok/s; mean of the 15: 1,061 tok/s (Cerebras server time) |
 | Proof | Express's own suite: **1,290 passing, 0 failing**, with `index.js` and all 89 test files untouched |
 
 The diff is what a careful human would write: `require` becomes `import`, `module.exports` becomes
 `export default`, local paths gain `.js`, and every other line is byte-for-byte the same
-(+92 / −83 lines across the six files in that run).
+(+93 / −84 lines across the six files in that run).
 
 ## How it works
 
@@ -58,8 +58,8 @@ The diff is what a careful human would write: `require` becomes `import`, `modul
    Kimi K3.1 Pro on Cerebras. The agent has the [`overnight` skill](skills/overnight/SKILL.md): it runs
    `node migrate.mjs --json` with its exec tool and answers from the JSON.
 2. **Split.** [`migrate.mjs`](migrate.mjs) cuts every file at top-level boundaries (a blank line
-   followed by a statement in column 0), never above the last `require`, into pieces of about 5,000
-   characters. Express's six files become 15 pieces.
+   followed by a statement in column 0), never above the last `require`, into equal-sized
+   pieces of at most about 5,000 characters, so no one piece holds up the rest. Express's six files become 15 pieces.
 3. **Fan out.** Every piece goes to Kimi at once, one streaming call each, with the same short set of
    rules (temperature 0, reasoning low). Pieces after the first see the file's `require` lines as
    context, so every worker makes the same naming decisions.
@@ -81,8 +81,11 @@ watch fifteen code windows fill at the same time, then the test count.
   last file written. Queueing, network and our own code all count against it, so nothing flatters it.
   Across our recorded takes it ranged from about 1,000 to 6,400 tok/s: when the shared trial endpoint
   queues some requests the wall clock grows and the number drops, and the page shows that as it happens.
-- **The rate limit is real.** The trial endpoint allows 50K uncached tokens a minute, so runs here are
-  spaced about 100 s apart.
+- **The rate limit is real.** The trial endpoint allows 50K tokens a minute, and one run needs most of
+  that. The OpenClaw agent's own turn spends part of the minute just before the fan-out, so
+  `migrate.mjs` first asks the endpoint how much of the minute is left and waits until the whole run
+  fits. That wait happens before the clock starts and is cut from the video; without it, a few streams
+  got a 429 mid-run and the wall clock doubled.
 - **One environment fix in the test run, and why.** Express's tests start servers with `listen(0)`, which
   binds every interface, then connect to `127.0.0.1`. On the machine this was built on, a desktop app
   listens on `127.0.0.1:49538`, inside the range the OS hands out for `listen(0)`. When a test server drew

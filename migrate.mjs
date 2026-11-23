@@ -55,7 +55,7 @@ function stripFences(text) {
 
 // Split a file at top-level boundaries (a blank line followed by a line that starts in column 0),
 // never before the last top-level require, and pack the pieces to about `target` characters.
-export function splitFile(source, target = Number(process.env.OVERNIGHT_PIECE_CHARS || 5000)) {
+export function splitFile(source, target = Number(process.env.OVERNIGHT_PIECE_CHARS || 5100)) {
   const lines = source.endsWith("\n") ? source.slice(0, -1).split("\n") : source.split("\n");
   let lastRequire = 0;
   lines.forEach((l, i) => { if (/^\S.*\brequire\(/.test(l) || /^(var|let|const)\b.*\brequire\(/.test(l)) lastRequire = i; });
@@ -63,17 +63,22 @@ export function splitFile(source, target = Number(process.env.OVERNIGHT_PIECE_CH
   for (let i = lastRequire + 1; i < lines.length; i++) {
     if (lines[i - 1] === "" && /^[^\s})\]]/.test(lines[i])) starts.push(i);
   }
-  const parts = [];
-  let a = 0, size = 0;
-  for (let k = 1; k <= starts.length; k++) {
-    const end = k < starts.length ? starts[k] : lines.length;
-    size += lines.slice(starts[k - 1], end).join("\n").length + 1;
-    if (size >= target || k === starts.length) {
-      parts.push({ from: a, to: end, text: lines.slice(a, end).map((l) => l + "\n").join("") });
-      a = end;
-      size = 0;
-    }
+  // Balanced cut: as many parts as the target size needs, each cut at the boundary nearest an equal share,
+  // so no single piece is left much bigger than the others (the biggest piece sets the wall clock).
+  const offs = [];
+  let acc = 0;
+  for (const l of lines) { offs.push(acc); acc += l.length + 1; }
+  const n = Math.max(1, Math.ceil(acc / target));
+  const cuts = [0];
+  for (let k = 1; k < n; k++) {
+    const want = (acc * k) / n;
+    let best = -1;
+    for (const st of starts) if (st > cuts[cuts.length - 1] && (best < 0 || Math.abs(offs[st] - want) < Math.abs(offs[best] - want))) best = st;
+    if (best > 0) cuts.push(best);
   }
+  cuts.push(lines.length);
+  const parts = [];
+  for (let k = 0; k + 1 < cuts.length; k++) parts.push({ from: cuts[k], to: cuts[k + 1], text: lines.slice(cuts[k], cuts[k + 1]).map((l) => l + "\n").join("") });
   const context = lines.filter((l) => /^\S/.test(l) && /\brequire\(|module\.exports\s*=/.test(l));
   const nestedRequire = lines.some((l) => /^\s+.*\brequire\(/.test(l) && !/^\s*\*/.test(l) && !/^\s*\/\//.test(l));
   return parts.map((p, i) => ({ ...p, index: i, count: parts.length, context, nestedRequire }));
@@ -87,6 +92,32 @@ function pieceMessage(file, piece) {
   if (piece.index > 0) note = " Imports are written by the worker on part 1; do not add any. A require() inside a function stays as it is.";
   const ctx = piece.index > 0 && piece.context.length ? `\n\nContext only (top-level lines of this file, handled by part 1, do not output them):\n${piece.context.join("\n")}` : "";
   return `${head}${note}${ctx}\n\nPart to convert:\n${piece.text}`;
+}
+
+// The trial endpoint allows 50K tokens a minute, and the OpenClaw agent's own turn spends part of that
+// just before this runs. Firing fifteen streams into a half-spent minute gets some of them a 429 and a
+// retry, which is what made slow runs slow. So before the fan-out (and before the clock starts), ask the
+// endpoint how much of the minute is left and wait until the whole run fits.
+async function waitForBudget({ pieces, key, emit, signal }) {
+  if (process.env.OVERNIGHT_PREFLIGHT === "0") return;
+  const chars = pieces.reduce((s, { file, piece }) => s + RULES.length + pieceMessage(file, piece).length + piece.text.length, 0);
+  const need = Math.min(48_000, Math.ceil(chars / 3.2));
+  const until = Date.now() + 60_000;
+  for (;;) {
+    let left = null;
+    try {
+      const res = await fetch(`${BASE}/chat/completions`, {
+        method: "POST", signal,
+        headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+        body: JSON.stringify({ model: MODEL, max_tokens: 1, reasoning_effort: "low", messages: [{ role: "system", content: RULES }, { role: "user", content: "." }] }),
+      });
+      left = Number(res.headers.get("x-ratelimit-remaining-tokens-minute"));
+      await res.body?.cancel();
+    } catch (e) { if (signal?.aborted) throw e; }
+    if (!Number.isFinite(left) || left >= need || Date.now() > until) { emit("budget", { need, left }); return; }
+    emit("budget-wait", { need, left });
+    await new Promise((r) => setTimeout(r, Math.min(3000, Math.max(500, ((need - left) / 50_000) * 60_000))));
+  }
 }
 
 async function convertOne({ file, piece, key, emit, signal }) {
@@ -114,10 +145,10 @@ async function convertOne({ file, piece, key, emit, signal }) {
       }),
     });
     if (res.status === 429 || res.status >= 500) {
-      const wait = Math.min(15, Number(res.headers.get("retry-after")) || 2 * attempt);
-      emit("retry", { file, id, status: res.status, wait });
-      await res.body?.cancel();
-      if (attempt >= 8) throw new Error(`${file}: HTTP ${res.status} after ${attempt} tries`);
+      const wait = Math.min(2, Number(res.headers.get("retry-after")) || 0.3 * attempt);
+      const why = (await res.text().catch(() => "")).slice(0, 160);
+      emit("retry", { file, id, status: res.status, wait, why, left: res.headers.get("x-ratelimit-remaining-tokens-minute") });
+      if (attempt >= 12) throw new Error(`${file}: HTTP ${res.status} after ${attempt} tries`);
       await new Promise((r) => setTimeout(r, wait * 1000));
       continue;
     }
@@ -255,6 +286,7 @@ export async function migrate({ src = path.join(HERE, "targets/express-cjs"), ds
   emit("start", { model: MODEL, files: files.map((f) => ({ file: f, lines: sources[f].split("\n").length - 1, chars: sources[f].length })) });
 
   const pieces = files.flatMap((file) => splitFile(sources[file]).map((piece) => ({ file, piece })));
+  await waitForBudget({ pieces, key, emit, signal });
   emit("plan", { pieces: pieces.map(({ file, piece }) => ({ file, id: piece.count > 1 ? `${file}#${piece.index + 1}` : file, part: piece.index, parts: piece.count, chars: piece.text.length, from: piece.from + 1, to: piece.to })) });
   const t0 = Date.now();
   const results = await Promise.all(pieces.map(({ file, piece }) => convertChecked({ file, piece, key, emit, signal })));
@@ -317,7 +349,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     if (e.type === "progress") return;
     if (e.type === "recheck") return console.log(`recheck ${e.id}: missing ${JSON.stringify(e.missing)}`);
     if (e.type === "file-done") console.log(`${e.id.padEnd(22)} ${String(e.tokens).padStart(5)} tok  ${e.tps ? Math.round(e.tps) : "?"} tok/s  reasoning ${e.reasoningTokens}  wall ${(e.wallMs / 1000).toFixed(2)}s  queue ${e.queueTime}`);
-    else if (e.type === "retry") console.log(`retry ${e.file} ${e.status} in ${e.wait}s`);
+    else if (e.type === "budget-wait" || e.type === "budget") console.log(`${e.type}: need ${e.need}, minute has ${e.left} left`);
+    else if (e.type === "retry") console.log(`retry ${e.file} ${e.status} in ${e.wait}s (left ${e.left}) ${e.why || ""}`);
     else if (e.type === "migrated") console.log(`migrated ${e.files} files (${e.pieces} pieces), ${e.lines} lines, ${e.tokens} tokens in ${(e.wallMs / 1000).toFixed(2)}s  combined ${Math.round(e.combinedTps)} tok/s  mean ${Math.round(e.meanTps)}  peak ${Math.round(e.peakTps)}`);
     else if (e.type === "tests-done") {
       console.log(`tests: ${e.stats ? `${e.stats.passes} passing, ${e.stats.failures} failing` : `crashed (exit ${e.code})`}`);
